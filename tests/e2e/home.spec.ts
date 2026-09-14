@@ -359,16 +359,32 @@ test.describe("the alumni employer wall", () => {
     await expect(container).toHaveCSS("pointer-events", "none");
 
     // Neither the padded gradient box nor Container may catch a pointer
-    // meant for the logos beneath: one point just inside the wrapper's own
-    // padding (right of the text, still within its box), one well outside
-    // the wrapper entirely but at the same height (where Container alone
-    // used to still be the hit target).
-    const rowY = wrapperBox.y + wrapperBox.height / 2;
-    const pointsOverLogos = [
-      { x: wrapperBox.x + wrapperBox.width - 10, y: rowY },
-      { x: wrapperBox.x + wrapperBox.width + 150, y: rowY },
-    ];
-    for (const point of pointsOverLogos) {
+    // meant for a real logo beneath: pick actual <img> logos from the grid
+    // whose own bounding box falls in the heading's row — one still inside
+    // the wrapper's padded box, one entirely outside it — rather than a
+    // blind pixel offset, since the auto-fill grid's column count (and so
+    // which exact pixel lands on an image vs. a gutter) shifts with viewport
+    // chrome (scrollbar width etc.) between machines.
+    const rowTop = wrapperBox.y;
+    const rowBottom = wrapperBox.y + wrapperBox.height;
+    const logos = page.locator('img[alt=""]');
+    const logoCount = await logos.count();
+    let logoInsideWrapper: { x: number; y: number } | null = null;
+    let logoOutsideWrapper: { x: number; y: number } | null = null;
+    for (let i = 0; i < logoCount && (!logoInsideWrapper || !logoOutsideWrapper); i++) {
+      const box = await logos.nth(i).boundingBox();
+      if (!box) continue;
+      const centerY = box.y + box.height / 2;
+      if (centerY < rowTop || centerY > rowBottom) continue;
+      const center = { x: box.x + box.width / 2, y: centerY };
+      const withinWrapperX = center.x >= wrapperBox.x && center.x <= wrapperBox.x + wrapperBox.width;
+      if (withinWrapperX && !logoInsideWrapper) logoInsideWrapper = center;
+      if (!withinWrapperX && !logoOutsideWrapper) logoOutsideWrapper = center;
+    }
+    expect(logoInsideWrapper, "a logo behind the heading's own padded box").not.toBeNull();
+    expect(logoOutsideWrapper, "a logo at the heading's row but outside its box").not.toBeNull();
+
+    for (const point of [logoInsideWrapper!, logoOutsideWrapper!]) {
       const tag = await page.evaluate(
         ({ x, y }) => document.elementFromPoint(x, y)?.tagName ?? null,
         point,
