@@ -32,8 +32,12 @@ async function loadDepartments(): Promise<PublicDepartment[]> {
   }
 }
 
+// revalidate: false, not a number — see jobPostings.ts's comment on the
+// same choice. This list has no time-based reason to go stale on its own
+// (unlike recruitingWindows.ts, whose windows open and close by date without
+// any admin action); the tag above is the only invalidation this needs.
 export const getDepartments: () => Promise<PublicDepartment[]> = nextCache(
   loadDepartments,
   ["departments"],
-  { tags: [DEPARTMENTS_TAG], revalidate: 3600 },
+  { tags: [DEPARTMENTS_TAG], revalidate: false },
 );

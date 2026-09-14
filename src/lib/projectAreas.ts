@@ -43,8 +43,12 @@ async function loadProjectAreas(): Promise<PublicProjectArea[]> {
   }
 }
 
+// revalidate: false, not a number — see jobPostings.ts's comment on the
+// same choice. This list has no time-based reason to go stale on its own
+// (unlike recruitingWindows.ts, whose windows open and close by date without
+// any admin action); the tag above is the only invalidation this needs.
 export const getProjectAreas: () => Promise<PublicProjectArea[]> = nextCache(
   loadProjectAreas,
   ["project-areas"],
-  { tags: [PROJECT_AREAS_TAG], revalidate: 3600 },
+  { tags: [PROJECT_AREAS_TAG], revalidate: false },
 );

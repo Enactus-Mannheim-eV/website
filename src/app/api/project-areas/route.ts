@@ -3,12 +3,12 @@ import { getProjectAreas } from "@/lib/projectAreas";
 
 /**
  * Lets ApplicationForm.tsx (the /mitmachen application form) refresh its
- * "Wunschbereich" checkbox list after hydration, the same seam
- * /api/recruiting-windows already gives the recruiting-window data on the
- * same form — see that route's own comment for the full reasoning
- * (testability: this is the mockable HTTP call e2e tests intercept with
- * page.route(), where a value baked into the static page at build time
- * can't be; freshness: bridges the gap before the next ISR regeneration).
+ * "Wunschbereich" checkbox list after hydration — the same mockable-seam
+ * reasoning as /api/recruiting-windows (a value baked into the static page
+ * at build time has no hook Playwright's page.route() can intercept; this
+ * route restores one). Unlike that route, there's no periodic-staleness
+ * case here: getProjectAreas() has no time-based expiry (see
+ * projectAreas.ts), an admin edit invalidates it immediately.
  *
  * No auth, no rate limit: this returns exactly the same public data
  * already embedded in the page's own HTML source.
