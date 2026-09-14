@@ -53,6 +53,14 @@ jobs:
         # anyone has core.hooksPath configured locally. Runs before npm ci
         # so a bad message fails fast instead of waiting on install/build.
         run: |
+          # actions/checkout registers this exception for its own git calls,
+          # but this job runs in a container (see the job's own comment on
+          # why), and a plain `run:` step executes inside that container as
+          # a different user than the one the checkout ran as on the host —
+          # so the ownership check trips again here, the first step in this
+          # job to invoke git directly rather than through an action.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
           before="${{ github.event.before }}"
           after="${{ github.event.after }}"
           zero="0000000000000000000000000000000000000000"
