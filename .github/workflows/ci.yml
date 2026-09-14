@@ -40,6 +40,49 @@ jobs:
       options: --shm-size=2gb
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, not the default shallow depth-1 clone: the next
+          # step diffs github.event.before..github.event.after, which needs
+          # every commit this push introduced, not just its tip.
+          fetch-depth: 0
+
+      - name: Reject AI attribution in commit messages
+        # Second, independent layer behind .githooks/commit-msg (see
+        # docs/engineering.md) — this is the one that actually enforces
+        # CLAUDE.md's "No AI traces" rule, because it runs whether or not
+        # anyone has core.hooksPath configured locally. Runs before npm ci
+        # so a bad message fails fast instead of waiting on install/build.
+        run: |
+          before="${{ github.event.before }}"
+          after="${{ github.event.after }}"
+          zero="0000000000000000000000000000000000000000"
+
+          if [ -z "$before" ] || [ "$before" = "$zero" ]; then
+            # New branch, nothing to diff against — a bounded fallback so
+            # this doesn't walk the entire repo history instead of just the
+            # push. (GitHub also truncates github.event.commits at 20 for a
+            # large push; this walks actual git history instead, so that
+            # cap doesn't apply here — only in this one fallback case.)
+            commits=$(git log --format=%H -n 100 "$after")
+          else
+            commits=$(git log --format=%H "$before..$after")
+          fi
+
+          # Keep this pattern in sync with .githooks/commit-msg by hand —
+          # see that file's comment for why "claude" isn't a bare-word ban.
+          pattern='^co-authored-by:|anthropic|copilot|chatgpt|claude[ -](code|opus|sonnet|haiku)|generated (with|by)|noreply@anthropic\.com|🤖'
+
+          failed=0
+          for sha in $commits; do
+            msg=$(git log -1 --format=%B "$sha")
+            if printf '%s' "$msg" | grep -Ei -q "$pattern"; then
+              echo "::error::commit $sha carries an AI-attribution pattern CLAUDE.md forbids:"
+              printf '%s' "$msg" | grep -Ein "$pattern"
+              failed=1
+            fi
+          done
+
+          exit "$failed"
 
       - uses: actions/setup-node@v4
         with:

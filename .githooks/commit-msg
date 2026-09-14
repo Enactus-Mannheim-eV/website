@@ -1,0 +1,30 @@
+#!/bin/sh
+# Rejects commit messages that carry AI-tool attribution. See CLAUDE.md's
+# "No AI traces" rule: no Co-Authored-By line, no tool credit, no
+# "generated" note, in any commit, regardless of what wrote the diff.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# This is the first of two layers. The real enforcement is the CI step in
+# .github/workflows/ci.yml — it runs whether or not this is configured
+# locally, which is why this alone was never enough. Keep the pattern below
+# in sync with that step by hand; there is no shared file a POSIX shell
+# script and a GitHub Actions step can both source.
+
+msg_file="$1"
+
+# Deliberately not a bare "claude" ban: this repo's own file is CLAUDE.md
+# and gets referenced in commit messages constantly, and "Claude" is also a
+# real tool-orbit logo in on-site content (feat(benefits) commits) — a
+# substring match on the bare word would reject both. These patterns target
+# the shapes an actual attribution trailer or footer takes instead.
+pattern='^co-authored-by:|anthropic|copilot|chatgpt|claude[ -](code|opus|sonnet|haiku)|generated (with|by)|noreply@anthropic\.com|🤖'
+
+if grep -Ei -q "$pattern" "$msg_file"; then
+  echo "commit-msg: rejected — this line matches an AI-attribution pattern:" >&2
+  grep -Ein "$pattern" "$msg_file" >&2
+  echo "" >&2
+  echo "CLAUDE.md: no Co-Authored-By, tool attribution, or \"generated\" note in any commit. Remove it and retry." >&2
+  exit 1
+fi

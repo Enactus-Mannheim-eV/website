@@ -27,6 +27,14 @@ notes to commits, PRs, or files. Never write a comment referencing an AI, a
 prompt, or your own reasoning. Commit messages describe the change and nothing
 else, in Conventional Commits format.
 
+This rule was violated once by the exact tool this file is instructing, which
+is why it is no longer enforced by this file alone: `.githooks/commit-msg` (a
+tracked hook, see its own comment for enabling it — `git config
+core.hooksPath .githooks`) rejects such a commit locally, and a CI step in
+`.github/workflows/ci.yml` re-checks every commit a push introduces and fails
+the run if any of them match, regardless of local setup. Full reasoning and
+the exact pattern list: `docs/engineering.md`, "Commit-message safeguard".
+
 **English in code, German and English in the UI.** All identifiers, comments, and
 commit messages are English. User-facing strings live in `messages/`.
 
