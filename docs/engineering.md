@@ -244,6 +244,53 @@ board member can delete a single entry directly from this page.
   image fallback on mobile.
 - Route-level code splitting; no barrel imports that pull in unused components.
 
+## Caching
+
+Every public read that hits Neon goes through `unstable_cache` (`src/lib/
+jobPostings.ts`, `projectAreas.ts`, `departments.ts`, `recruitingWindows.ts`,
+`calendarEvents.ts`), tagged so an admin mutation can invalidate it
+immediately via `revalidateTag(TAG, { expire: 0 })`.
+
+**The `revalidate` option is not a property of the data — it's a property of
+the largest segment that reads it.** `unstable_cache`'s `revalidate` value
+propagates up to the ISR interval of whichever page or layout calls the
+loader; a numeric value there doesn't just bound one page, it becomes the
+regeneration interval for every segment along the way. `getJobPostings()` is
+read once, in `(site)/layout.tsx`, so it's read by *every* page under it —
+`revalidate: 3600` on that loader alone turned every static page on the site
+(Impressum, Partner, every project page, …) into an hourly rewrite instead
+of leaving them static. That's what exhausted the Vercel Hobby ISR-write
+quota (200k/month) on a low-traffic site.
+
+The rule this project follows now:
+
+| Situation | `revalidate` |
+|---|---|
+| Data only changes via an admin mutation, no time-based reason to expire | `false` — the tag is the only invalidation path |
+| Data is itself date-driven (a recruiting window opening/closing, a `Date.now()` frozen into the prerender at build time) without a corresponding mutation to hang a tag on | a number, sized to how stale that's acceptable |
+
+Concretely: `jobPostings.ts`, `projectAreas.ts`, and `departments.ts` are
+`revalidate: false` — read only from `(site)/layout.tsx` and `/mitmachen`,
+with a tag covering every write. `recruitingWindows.ts` and
+`calendarEvents.ts` keep `revalidate: 3600`, deliberately — a recruiting
+window's open/closed state and `calendarEvents.ts`'s `getServerNowMs()` both
+change with the clock, not with an admin action.
+
+`tests/unit/lib/cacheBlastRadius.test.ts` encodes this table as an executable
+test: it inspects the actual `unstable_cache` options each loader is wrapped
+with, so a numeric `revalidate` added back to a site-wide loader fails there,
+not as an ISR-writes spike weeks later. Before giving any loader read from a
+shared layout a numeric `revalidate`, check what else lives under that
+segment — a value that looks harmless for one page may not be.
+
+The `/[locale]/(site)/[...rest]` and `/[locale]/admin/[...rest]` catch-all
+pages are `force-dynamic` for a related reason: without it, every guessed
+path a scanner or a stale bookmark hits gets written into the full route
+cache on first render, since a 404 page with no `generateStaticParams`
+otherwise still gets cached like any other dynamic-params page. An unbounded
+number of guessed paths is an unbounded number of ISR writes; a 404 costs
+nothing to regenerate per request instead.
+
 ## SEO
 
 - `generateMetadata` per route and locale, with OG images, a real
@@ -328,3 +375,50 @@ e2e. Zero violations is the passing bar.
 GitHub Actions on every push: typecheck → lint → unit → integration → build →
 e2e. Red build does not merge. Keep the whole run under five minutes; if it grows
 past that, parallelise rather than cutting coverage.
+
+The very first step, before any of that, rejects the push outright if any
+commit it introduces carries an attribution trailer or footer this project's
+"No AI traces" rule (see CLAUDE.md's Non-negotiables) forbids. This is the
+second of two layers — see below.
+
+### Commit-message safeguard
+
+The commit-message rule in CLAUDE.md's Non-negotiables is enforced by two
+independent, redundant checks, because the rule alone was violated once
+despite being written down:
+
+1. **`.githooks/commit-msg`**, a tracked hook, rejects the commit locally
+   before it's ever made. Not active by default — hooks aren't versioned by
+   git itself, only their *contents* are — so it needs one command per
+   clone:
+
+   ```
+   git config core.hooksPath .githooks
+   ```
+
+   Cheap, immediate, but skippable (a fresh clone that hasn't run the
+   command above, or a commit made with `--no-verify`).
+
+2. **A CI step** (`.github/workflows/ci.yml`, first step in the job) walks
+   every commit the push introduced (`git log
+   github.event.before..github.event.after`) and fails the run if any
+   commit message matches. This is the layer that actually holds — it runs
+   regardless of local configuration and can't be bypassed by a commit flag.
+
+Both read the same pattern list, kept in sync by hand (there's no file a
+POSIX shell script and a GitHub Actions step can both source):
+
+- the `Co-Authored-By:` trailer, outright, regardless of what name or email
+  is on it
+- `Anthropic`, `Copilot`, `ChatGPT`, `noreply@anthropic.com`
+- `Claude` directly adjacent to a model qualifier — `Claude Code`, `Claude
+  Opus`, `Claude Sonnet`, `Claude Haiku`
+- a `Generated with` / `Generated by` footer, and the 🤖 emoji
+
+Deliberately **not** a bare-word ban on "Claude" or "AI": `CLAUDE.md` is
+this repo's own governing file and gets named in commit messages constantly,
+and "Claude" is also a legitimate on-site content reference (a tool-orbit
+logo, alongside Notion and Canva). A substring match on the bare word would
+reject both of those. The patterns above target the shapes an actual
+attribution trailer or footer takes instead — check
+`.githooks/commit-msg`'s own comment before tightening this list.

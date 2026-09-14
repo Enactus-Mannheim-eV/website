@@ -11,10 +11,12 @@ import { getJobPostings } from "@/lib/jobPostings";
  *    seam Playwright's page.route() can intercept; routing it through a
  *    fetchable endpoint restores one, the same way every DB-backed form on
  *    this site already works.
- * 2. Freshness. The server-rendered page can be up to an hour stale
- *    (revalidate: 3600) between an admin edit and the next cache refresh;
- *    this route always reads the same cache but is checked on every real
- *    visit.
+ * 2. Freshness. getJobPostings() has no time-based expiry of its own (see
+ *    that file's comment on why) — an admin edit invalidates it
+ *    immediately via revalidateTag, so this route's freshness case is
+ *    narrower than /api/recruiting-windows' and /api/calendar-events': it's
+ *    the same cache entry the page already reads, checked again after
+ *    hydration rather than only at the last render.
  *
  * No auth, no rate limit: this returns exactly the same public data that's
  * already embedded in the /jobs page's own HTML source.
