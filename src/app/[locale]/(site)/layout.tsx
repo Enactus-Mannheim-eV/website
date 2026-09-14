@@ -19,11 +19,13 @@ export default async function SiteLayout({
   await requireLocale(params);
 
   // getJobPostings() is already the non-expired list (lib/db.ts's
-  // listActiveJobPostings) behind an hour-long cache — reading it here,
-  // once per request, is what lets Header and Footer (client components, or
-  // components that call next-intl's useTranslations, which can't run in an
-  // async component) decide whether to show "Jobs" without fetching the
-  // database themselves.
+  // listActiveJobPostings) behind a tag-invalidated cache — reading it here
+  // is what lets Header and Footer (client components, or components that
+  // call next-intl's useTranslations, which can't run in an async component)
+  // decide whether to show "Jobs" without fetching the database themselves.
+  // Every page under this layout reads it too, which is exactly why its
+  // cache has no numeric revalidate: see the comment on getJobPostings
+  // itself for what that would do to every other page on the site.
   const jobs = await getJobPostings();
   const hasJobs = jobs.length > 0;
 

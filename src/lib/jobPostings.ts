@@ -19,8 +19,8 @@ import type { JobPosting } from "@/content/jobs";
 export const JOB_POSTINGS_TAG = "job-postings";
 
 // See calendarEvents.ts's identical comment on `{ expire: 0 }`: an admin
-// edit at /admin/jobs needs to be visible on the next page load, not after
-// the hour-long fallback below expires.
+// edit at /admin/jobs needs to be visible on the next page load, without
+// waiting for the entry below to expire on its own.
 export const JOB_POSTINGS_REVALIDATE = { expire: 0 } as const;
 
 async function loadJobPostings(): Promise<JobPosting[]> {
@@ -44,8 +44,16 @@ async function loadJobPostings(): Promise<JobPosting[]> {
   }
 }
 
+// revalidate: false, not a number — this loader is read from the (site)
+// layout, so it runs on every public page, not just /jobs. A numeric
+// revalidate here doesn't just bound this one page; it becomes the ISR
+// interval for the entire site (unstable_cache's revalidate propagates to
+// the smallest value any reader's segment has seen), which is what quietly
+// turned every static page into an hourly rewrite. Freshness for a mutation
+// comes from the tag above, not from an expiry — there is no time-based
+// reason for this list to go stale on its own.
 export const getJobPostings: () => Promise<JobPosting[]> = nextCache(
   loadJobPostings,
   ["job-postings"],
-  { tags: [JOB_POSTINGS_TAG], revalidate: 3600 },
+  { tags: [JOB_POSTINGS_TAG], revalidate: false },
 );
