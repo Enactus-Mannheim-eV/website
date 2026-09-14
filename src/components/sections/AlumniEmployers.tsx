@@ -149,7 +149,22 @@ export function AlumniEmployers() {
           comes after this in the DOM, at the same level, so it keeps
           painting on top. */}
       <ThreadSegment stop="alumni-employers" className="z-0" />
-      <Container className="relative flex flex-col gap-10">
+      {/* pointer-events-none on the whole Container, not just the heading's
+          own box: Container is `w-full max-w-content` — a real, positioned
+          element the full width of the section, its height whatever its
+          children need (here, just the heading row) — sitting in front of
+          AlumniLogoField's ProximityGroup in paint order. Even with the
+          heading's own div scoped tightly around the text, Container's box
+          still spanned the entire row at the heading's height, so it alone
+          was already catching every pointermove there before
+          ProximityGroup's own listener saw it — the reason the zoom-on-hover
+          effect died at that exact height across the *whole* row, not just
+          behind the words (2026-09-14 fix). Safe here specifically because
+          nothing inside this Container is interactive: SectionHeading is
+          static text and AlumniLogoStrip is aria-hidden decoration (its own
+          comment: no logo links out) — neither needs pointer events, so
+          letting them all inherit none costs nothing. */}
+      <Container className="relative flex flex-col gap-10 pointer-events-none">
         {/* A soft radial fade, not a flat bg-paper panel: the golden thread
             (ThreadSegment above) bows through this exact top-left region on
             its way from the top of the section back toward centre, and a
@@ -160,10 +175,22 @@ export function AlumniEmployers() {
             extra padding (vs. the old p-6/p-8) gives that fade room to
             happen without ever touching the text. Same element, same DOM
             position as before — no z-index change needed, it already paints
-            above the thread exactly as the flat box did. */}
+            above the thread exactly as the flat box did.
+
+            `closest-side`, not the default farthest-corner: this box is much
+            wider than it is tall, so a farthest-corner ellipse sizes itself
+            off the diagonal and never actually reaches its own transparent
+            stop before the box's top/bottom edge — the whole padded height
+            painted opaque paper, which is what was cutting the thread off
+            over a much taller band than the text itself (2026-09-14 fix).
+            closest-side sizes each axis off its own nearest edge, so the
+            fade completes within the box on every side, matching what the
+            comment above already claimed it did. */}
         <div
           className="inline-flex flex-col gap-4 self-start p-8 md:p-12"
-          style={{ background: "radial-gradient(ellipse at center, var(--color-paper) 40%, transparent 75%)" }}
+          style={{
+            background: "radial-gradient(ellipse closest-side at center, var(--color-paper) 40%, transparent 60%)",
+          }}
         >
           <SectionHeading eyebrow={t("eyebrow")} title={t("title")} />
         </div>

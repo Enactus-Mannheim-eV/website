@@ -325,3 +325,67 @@ test.describe("the golden thread", () => {
     }
   });
 });
+
+test.describe("the alumni employer wall", () => {
+  // Regression covering two symptoms of the same root cause (2026-09-14):
+  // the heading's radial-gradient backdrop (AlumniEmployers.tsx) and the
+  // Container it sits in were both real, pointer-events:auto boxes in front
+  // of the logo grid's ProximityGroup — so the grid's zoom-on-hover never
+  // fired at the heading's own height, even well past the visible text —
+  // and the gradient's default farthest-corner sizing on this wide, short
+  // box never reached its own transparent stop before the box's top/bottom
+  // edge, so the golden thread behind it vanished for the box's whole
+  // height rather than just behind the letters.
+  test("keeps the logo grid hoverable at the heading's height, and the golden thread visible close around it", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the logo grid and golden thread are desktop-only (hidden md:block)");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+
+    const heading = page.getByRole("heading", { name: "Wo unsere Alumni heute arbeiten" });
+    await heading.scrollIntoViewIfNeeded();
+
+    const textStack = heading.locator("xpath=.."); // SectionHeading's own eyebrow+title div
+    const wrapper = heading.locator("xpath=ancestor::div[contains(@style, 'gradient')]");
+    const container = wrapper.locator("xpath=ancestor::div[contains(@class, 'max-w-content')]");
+
+    const textBox = (await textStack.boundingBox())!;
+    const wrapperBox = (await wrapper.boundingBox())!;
+    expect(textBox).not.toBeNull();
+    expect(wrapperBox).not.toBeNull();
+
+    await expect(container).toHaveCSS("pointer-events", "none");
+
+    // Neither the padded gradient box nor Container may catch a pointer
+    // meant for the logos beneath: one point just inside the wrapper's own
+    // padding (right of the text, still within its box), one well outside
+    // the wrapper entirely but at the same height (where Container alone
+    // used to still be the hit target).
+    const rowY = wrapperBox.y + wrapperBox.height / 2;
+    const pointsOverLogos = [
+      { x: wrapperBox.x + wrapperBox.width - 10, y: rowY },
+      { x: wrapperBox.x + wrapperBox.width + 150, y: rowY },
+    ];
+    for (const point of pointsOverLogos) {
+      const tag = await page.evaluate(
+        ({ x, y }) => document.elementFromPoint(x, y)?.tagName ?? null,
+        point,
+      );
+      expect(tag, `elementFromPoint(${point.x}, ${point.y})`).toBe("IMG");
+    }
+
+    // The gradient must size itself off each axis's own nearest edge
+    // (closest-side), not the box's diagonal (the farthest-corner default),
+    // and must reach full transparency well before this short box's own
+    // top/bottom edge — within a small margin of the actual text height,
+    // not the padding around it.
+    const background = await wrapper.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(background).toContain("closest-side");
+    const transparentStop = background.match(/(\d+(?:\.\d+)?)%\)$/);
+    expect(transparentStop).not.toBeNull();
+    const transparentRadiusY = (Number(transparentStop![1]) / 100) * (wrapperBox.height / 2);
+    expect(transparentRadiusY).toBeLessThan(textBox.height / 2 + 20);
+  });
+});
