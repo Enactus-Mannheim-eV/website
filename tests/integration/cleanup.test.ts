@@ -2,6 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const revalidateTag = vi.fn();
+vi.mock("next/cache", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/cache")>();
+  return { ...actual, revalidateTag: (...a: unknown[]) => revalidateTag(...a) };
+});
+
 const deleteExpiredApplications = vi.fn();
 const deleteExpiredContactMessages = vi.fn();
 const deleteExpiredReminderSignups = vi.fn();
@@ -237,6 +243,49 @@ describe("GET /api/cron/cleanup", () => {
       // up, and this run's own status must not read as a failure.
       expect(deleteCvBlobs).not.toHaveBeenCalled();
       expect(listCvBlobs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("job-postings cache invalidation", () => {
+    // getJobPostings() (lib/jobPostings.ts) has no time-based expiry — every
+    // other write path invalidates its tag immediately, and this sweep is
+    // the one write path that used to skip that, leaving an expired posting
+    // visible on /jobs and in the nav until the next unrelated mutation.
+    beforeEach(() => {
+      process.env.CRON_SECRET = "test-secret";
+      vi.resetModules();
+      deleteExpiredApplications.mockResolvedValue({ count: 0, cvPathnames: [] });
+      deleteExpiredContactMessages.mockResolvedValue(0);
+      deleteExpiredReminderSignups.mockResolvedValue(0);
+      pruneRateLimitHits.mockResolvedValue(0);
+      deleteExpiredIdeathonSignups.mockResolvedValue(0);
+    });
+
+    it("invalidates the job-postings tag when the sweep actually deletes a posting", async () => {
+      deleteExpiredJobPostings.mockResolvedValue(2);
+
+      const { GET } = await import("@/app/api/cron/cleanup/route");
+      await GET(request("Bearer test-secret"));
+
+      expect(revalidateTag).toHaveBeenCalledWith("job-postings", { expire: 0 });
+    });
+
+    it("does not touch the cache on a run with nothing expired", async () => {
+      deleteExpiredJobPostings.mockResolvedValue(0);
+
+      const { GET } = await import("@/app/api/cron/cleanup/route");
+      await GET(request("Bearer test-secret"));
+
+      expect(revalidateTag).not.toHaveBeenCalled();
+    });
+
+    it("does not invalidate when the job-postings delete itself fails", async () => {
+      deleteExpiredJobPostings.mockRejectedValue(new Error("db unreachable"));
+
+      const { GET } = await import("@/app/api/cron/cleanup/route");
+      await GET(request("Bearer test-secret"));
+
+      expect(revalidateTag).not.toHaveBeenCalled();
     });
   });
 

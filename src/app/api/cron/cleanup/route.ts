@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -13,6 +14,7 @@ import {
   pruneRateLimitHits,
   startCronRun,
 } from "@/lib/db";
+import { JOB_POSTINGS_REVALIDATE, JOB_POSTINGS_TAG } from "@/lib/jobPostings";
 import {
   contactMessageRetentionCutoff,
   ideathonSignupRetentionCutoff,
@@ -117,6 +119,17 @@ async function runCleanupJob(now: Date) {
   };
   const jobPostingsDeleted = jobPostings.status === "fulfilled" ? jobPostings.value : null;
   const ideathonSignupsDeleted = ideathonSignups.status === "fulfilled" ? ideathonSignups.value : null;
+
+  // Every admin route that touches this table invalidates the tag right
+  // after its write (see jobPostings.ts); this sweep deletes rows too, and
+  // without this it would be the one write path that doesn't, leaving an
+  // expired posting on /jobs and in the nav until something else happens to
+  // invalidate the tag. Gated on an actual delete: an unconditional call
+  // here would turn a no-op nightly run into a site-wide cache write of its
+  // own, which is the exact failure mode this whole fix exists to remove.
+  if (jobPostingsDeleted !== null && jobPostingsDeleted > 0) {
+    revalidateTag(JOB_POSTINGS_TAG, JOB_POSTINGS_REVALIDATE);
+  }
 
   const failures: string[] = [];
   for (const [name, result] of Object.entries({
