@@ -55,6 +55,7 @@ const MAX_PER_WINDOW: Record<string, number> = {
   // Same reasoning for the contact form's token: one call per page load, so
   // generous, but not unlimited.
   "kontakt-token": 60,
+  "ideathon-token": 60,
   // The actual upload route — tighter than the token route on purpose,
   // since a successful call here writes a file to the store, not just
   // issues a token.
