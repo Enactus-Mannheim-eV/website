@@ -85,6 +85,13 @@ Two traps this project has already hit, worth checking before pushing:
 chat and wait for the answer — never guess, never work around it, never write a
 `HANDOFF.md` instead. `HANDOFF.md` is only for explicitly unattended runs.
 
+**Local secrets.** For local verification steps, Claude may use the values in
+`.env.local`, including `ADMIN_PASSWORD`, without asking first. A value from
+that file is never printed: not in chat, command output, logs, test output,
+commit messages, or any file in the repo. Read it inside the script that needs
+it and report the outcome, not the value. This is a statement about
+`.env.local` only; the harness's own permission prompts still apply.
+
 ## Stack
 
 Next.js 15+ App Router · React 19 · TypeScript strict · Tailwind CSS **v4** ·
