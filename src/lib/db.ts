@@ -1698,14 +1698,20 @@ export type ContactMessageInput = {
   subject?: string;
   message: string;
   locale: Locale;
+  // Optional so every caller that builds a message for a mail (the test
+  // send, the resend route) stays valid without knowing about spam at all;
+  // only /api/kontakt ever sets them.
+  spam?: boolean;
+  spamReasons?: string[];
 };
 
 export type ContactMessage = ContactMessageInput & { id: string; createdAt: Date };
 
 export async function insertContactMessage(input: ContactMessageInput): Promise<ContactMessage> {
   const rows = await sql()`
-    insert into contact_messages (name, email, subject, message, locale)
-    values (${input.name}, ${input.email}, ${input.subject ?? null}, ${input.message}, ${input.locale})
+    insert into contact_messages (name, email, subject, message, locale, spam, spam_reasons)
+    values (${input.name}, ${input.email}, ${input.subject ?? null}, ${input.message}, ${input.locale},
+            ${input.spam ?? false}, ${input.spamReasons ?? []}::text[])
     returning id, created_at
   `;
   const row = rows[0] as Record<string, unknown>;
@@ -1746,12 +1752,17 @@ export type ContactMessageSummary = {
   email: string;
   subject: string | null;
   mailStatus: MailStatus;
+  spamReasons: string[];
 };
 
-export async function listContactMessages(): Promise<ContactMessageSummary[]> {
+export type ContactMessageView = "inbox" | "spam";
+
+export async function listContactMessages(view: ContactMessageView = "inbox"): Promise<ContactMessageSummary[]> {
+  const spam = view === "spam";
   const rows = await sql()`
-    select id, created_at, name, email, subject, mail_status
+    select id, created_at, name, email, subject, mail_status, spam_reasons
     from contact_messages
+    where spam = ${spam}
     order by created_at desc
   `;
   return (rows as Record<string, unknown>[]).map((row) => ({
@@ -1761,7 +1772,44 @@ export async function listContactMessages(): Promise<ContactMessageSummary[]> {
     email: row.email as string,
     subject: (row.subject as string | null) ?? null,
     mailStatus: row.mail_status as MailStatus,
+    spamReasons: (row.spam_reasons as string[] | null) ?? [],
   }));
+}
+
+export async function countContactMessages(): Promise<Record<ContactMessageView, number>> {
+  const rows = await sql()`
+    select count(*) filter (where not spam)::int as inbox,
+           count(*) filter (where spam)::int as spam
+    from contact_messages
+  `;
+  const row = (rows as Record<string, unknown>[])[0];
+  return { inbox: row.inbox as number, spam: row.spam as number };
+}
+
+/**
+ * "Kein Spam" in the admin. Returns the released message so the caller can
+ * forward it, or null when no flagged row matched — which is also what a
+ * double click sees, so a second request neither errors nor mails twice.
+ * `spam_reasons` is left in place on purpose: it is the record of which rule
+ * got it wrong.
+ */
+export async function clearContactMessageSpam(id: string): Promise<ContactMessage | null> {
+  const rows = await sql()`
+    update contact_messages set spam = false
+    where id = ${id} and spam
+    returning id, created_at, name, email, subject, message, locale
+  `;
+  if (rows.length === 0) return null;
+  const row = rows[0] as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    createdAt: row.created_at as Date,
+    name: row.name as string,
+    email: row.email as string,
+    subject: (row.subject as string | null) ?? undefined,
+    message: row.message as string,
+    locale: row.locale as Locale,
+  };
 }
 
 export async function findContactMessageById(id: string): Promise<ContactMessage | null> {
@@ -1815,6 +1863,9 @@ export type FailedMail = {
 };
 
 export async function listFailedMails(): Promise<FailedMail[]> {
+  // Held-back spam keeps mail_status 'pending' (nothing was ever attempted),
+  // so it never shows up here or in mailHealthSnapshot; a message released
+  // with "Kein Spam" is mailed then and can fail like any other.
   const rows = await sql()`
     select 'applications' as source, id, created_at, email,
            first_name || ' ' || last_name as label, mail_error

@@ -383,9 +383,22 @@ async function verifyContactMessages() {
     returning *
   `;
   check("mail_status defaults to pending", inserted.mail_status, "pending");
+  check("spam defaults to false", inserted.spam, false);
+  check("spam_reasons defaults to empty", inserted.spam_reasons, []);
 
-  const deleted = await sql`delete from contact_messages where id = ${inserted.id} returning id`;
-  check("delete removes exactly one row", deleted.length, 1);
+  const [flagged] = await sql`
+    insert into contact_messages (name, email, subject, message, locale, spam, spam_reasons)
+    values ('Verify Script', ${email}, 'DB verify', 'Verification run, not a real message.', 'de',
+            true, ${["random_name", "too_fast"]}::text[])
+    returning *
+  `;
+  check("spam round-trips as true", flagged.spam, true);
+  check("spam_reasons round-trips as an array", flagged.spam_reasons, ["random_name", "too_fast"]);
+
+  const deleted = await sql`
+    delete from contact_messages where id in (${inserted.id}, ${flagged.id}) returning id
+  `;
+  check("delete removes both rows", deleted.length, 2);
 }
 
 async function verifyCronRuns() {

@@ -19,4 +19,4 @@
  * this project has no test for, on the one page whose job is to be
  * trustworthy when something else has already gone wrong.
  */
-export const LATEST_MIGRATION = "0023_interview_slots.sql";
+export const LATEST_MIGRATION = "0024_contact_messages_spam.sql";
