@@ -58,11 +58,18 @@ export type PrivacyReviewStatus = z.infer<typeof privacyReviewStatusSchema>;
 // time slots an applicant may optionally select (migrations/0023,
 // Datenschutz.application.fields' own new entry) — stored on the
 // application row itself and deleted along with it, no separate retention
-// period. Flip back to `false` if any of those areas change again before
-// the next sign-off.
+// period.
+//
+// Re-confirmed 2026-10-04 by the same reviewer for the automatic spam check on
+// the contact form (Datenschutz.antiSpam.measures, last entry): a content
+// check of name, subject, message and address, with suspected spam stored
+// flagged together with the rules that fired, held back from the board's
+// inbox until released by hand, and kept for the same 12 months as every
+// contact message (migrations/0024). Flip back to `false` if any of those
+// areas change again before the next sign-off.
 export const privacyReviewStatus: PrivacyReviewStatus = privacyReviewStatusSchema.parse({
   reviewed: true,
-  reviewedAt: "2026-09-10",
+  reviewedAt: "2026-10-04",
   reviewedBy: "Marco Becker",
   reviewerRole: "Datenschutzbeauftragter Enactus Germany",
 });

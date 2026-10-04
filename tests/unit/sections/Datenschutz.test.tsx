@@ -21,7 +21,7 @@ describe("Datenschutz", () => {
 
   it("shows the effective date but not a review-confirmation notice", () => {
     renderWithIntl(<Datenschutz />);
-    expect(screen.getByText("Stand: August 2026")).toBeInTheDocument();
+    expect(screen.getByText("Stand: Oktober 2026")).toBeInTheDocument();
     expect(screen.queryByText(/^Zuletzt geprüft am/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Entwurf\./)).not.toBeInTheDocument();
   });

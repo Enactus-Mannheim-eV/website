@@ -59,7 +59,7 @@ test.describe("/datenschutz", () => {
   test("renders the real policy, not the coming-soon placeholder", async ({ page }) => {
     await page.goto("/datenschutz");
     await expect(page.getByRole("heading", { level: 1, name: "Datenschutzerklärung" })).toBeVisible();
-    await expect(page.getByText("Stand: August 2026")).toBeVisible();
+    await expect(page.getByText("Stand: Oktober 2026")).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Bewerbungsformular" })).toBeVisible();
     await expect(page.getByText(/Der Lebenslauf ist als PDF-Datei hochzuladen, maximal 4 MB/)).toBeVisible();
   });

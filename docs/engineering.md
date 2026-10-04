@@ -167,6 +167,57 @@ on `/api/bewerbung` or `/api/ideathon` also now emails
 (`lib/insertFailureAlert.ts`), so the board hears about a broken form even
 if nobody happens to be looking at `/admin/system`.
 
+## Contact form (`/kontakt`) and its spam handling
+
+Until 2026-10-04 the route had only the IP rate limit, no honeypot and no
+signed token, even though the Datenschutzerklärung described both for every
+form. Bots posting random mixed-case strings as name and subject got through
+at a pace far below the rate limit, one message every few hours, and each one
+was mailed to the board.
+
+What it does now (`/api/kontakt`, `lib/contactSpam.ts`):
+
+1. Rate limit, then validate. `formToken` and `website` are *optional* in the
+   request schema, so a missing one is a signal, never a 400 that would lose a
+   real message.
+2. `assessContactSubmission` collects reasons from the form (hidden `website`
+   field, `GET /api/kontakt/token` signed token: missing, forged, under
+   `MIN_FILL_MS`, expired) and from the content (`lib/spamHeuristics.ts`).
+3. The message is **always written to Postgres**, with `spam` and
+   `spam_reasons` (migration `0024`). Only a non-spam message is mailed.
+   Spam keeps `mail_status = 'pending'`, so it never shows up under
+   `/admin/mails` or in the Resend health card.
+4. The response is `{ ok: true }` either way; a bot can't tell it was caught.
+
+Content rules, tuned against the observed pattern and nothing broader:
+- *Strong*, enough alone: a name or subject word of 10+ Latin letters with 4+
+  lower-to-upper case changes (`random_name`, `random_subject`).
+- *Weak*, two different ones needed: a vowel-free word (`no_vowel`), a 15+
+  character name with no space or separator (`long_single_name`), a message
+  that isn't words (`wordless_message`), an address with 3+ dots and 3+
+  one- or two-character segments (`dotted_email`).
+- Case and vowel rules only look at Latin script; a name in any other script
+  never matches. A message of random letters with 3 or fewer case changes in a
+  word still passes the strong rules.
+
+Two decisions worth knowing before changing this:
+- **Release, don't discard.** `/admin/kontakt` has an inbox and a spam tab.
+  "Kein Spam" (`POST /api/admin/kontakt/[id]/not-spam`) clears the flag and
+  forwards the message at once, because the admin list never shows message
+  text. `spam_reasons` stays on the row afterwards: it is the record of which
+  rule was wrong.
+- **No `FORM_TOKEN_SECRET`: the timing check turns off, it does not hold
+  everything back.** Without the secret no token can be verified, and holding
+  every real message in a tab nobody watches is the worse failure. It is
+  logged on every submission. The Ideathon and application routes still fail
+  closed in that case.
+
+The same heuristics could screen `/api/bewerbung` and `/api/ideathon`, but
+deliberately don't: those forms already have honeypot and token, no spam was
+seen there, and a falsely flagged application costs far more than a falsely
+flagged enquiry. If it is ever needed, the mode there should be "flag but
+still notify", not "hold back".
+
 ## Application-start notification ("reminder list" in code and routes)
 
 User-facing copy calls this the "Benachrichtigung zum Bewerbungsstart" /

@@ -1163,7 +1163,7 @@
   "Datenschutz": {
     "eyebrow": "Legal",
     "title": "Privacy policy",
-    "effectiveDate": "Last updated: August 2026",
+    "effectiveDate": "Last updated: October 2026",
     "scope": {
       "title": "Scope",
       "body": [
@@ -1317,7 +1317,8 @@
       "measures": [
         "a form field invisible to you, filled in only by automated programs",
         "a check of the time between loading and submitting the form",
-        "a limit on the number of submissions per sender within a time window"
+        "a limit on the number of submissions per sender within a time window",
+        "for the contact form, additionally an automatic check of name, subject, message and email address for typical traits of machine-generated random text. We do not delete suspicious messages: we store them with a flag and the rules that triggered, and review them by hand. They are forwarded to the board's mailbox only once we release them as a genuine enquiry. The same retention period applies to them as to every contact message."
       ],
       "ipHandling": "For that limit, we store your IP address only as a cryptographic hash, from which the original address cannot be recomputed. These values are deleted automatically once the respective time window elapses.",
       "noCaptcha": "We deliberately do not use a CAPTCHA. It would be a barrier for people with disabilities and would transmit additional data to third parties.",

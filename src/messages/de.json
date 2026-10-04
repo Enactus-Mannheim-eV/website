@@ -1163,7 +1163,7 @@
   "Datenschutz": {
     "eyebrow": "Rechtliches",
     "title": "Datenschutzerklärung",
-    "effectiveDate": "Stand: August 2026",
+    "effectiveDate": "Stand: Oktober 2026",
     "scope": {
       "title": "Geltungsbereich",
       "body": [
@@ -1317,7 +1317,8 @@
       "measures": [
         "ein für dich unsichtbares Formularfeld, das nur von automatisierten Programmen ausgefüllt wird",
         "eine Prüfung der Zeit zwischen Aufruf und Absenden des Formulars",
-        "eine Begrenzung der Anzahl von Einsendungen je Absender innerhalb eines Zeitfensters"
+        "eine Begrenzung der Anzahl von Einsendungen je Absender innerhalb eines Zeitfensters",
+        "beim Kontaktformular zusätzlich eine automatische Prüfung von Name, Betreff, Nachricht und E-Mail-Adresse auf typische Merkmale maschinell erzeugter Zufallstexte. Auffällige Nachrichten löschen wir nicht, sondern speichern sie mit einer Markierung und den Regeln, die angeschlagen haben, und sehen sie von Hand durch. An das Postfach des Vorstands werden sie erst weitergeleitet, wenn wir sie als echte Anfrage freigeben. Für sie gilt dieselbe Speicherdauer wie für alle Kontaktanfragen."
       ],
       "ipHandling": "Für die Begrenzung speichern wir deine IP-Adresse ausschließlich als kryptografischen Hashwert, aus dem sich die ursprüngliche Adresse nicht zurückrechnen lässt. Diese Werte werden nach Ablauf des jeweiligen Zeitfensters automatisch gelöscht.",
       "noCaptcha": "Ein Captcha setzen wir bewusst nicht ein. Es wäre eine Barriere für Menschen mit Behinderung und würde zusätzliche Daten an Dritte übermitteln.",

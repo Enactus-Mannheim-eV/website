@@ -104,7 +104,9 @@ designed, not a bug to silently paper over.
 all follow the same shape, enforced by a shared Zod schema used on both the
 client (`react-hook-form` + `zodResolver`) and the server (the API route):
 
-1. Validate (honeypot + timing check for the application form — no CAPTCHA).
+1. Validate (honeypot + timing check for the application and Ideathon forms;
+   the contact form adds a content check and holds a suspect message back
+   instead of dropping it, see `docs/engineering.md` — no CAPTCHA).
 2. **Write to Postgres first.** `src/lib/db.ts`'s `insert*` functions.
 3. Only after that succeeds: render a PDF (application) or send mail
    (`src/lib/mail.ts`, via Resend).
