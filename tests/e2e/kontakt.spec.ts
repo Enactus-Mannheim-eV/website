@@ -1,5 +1,21 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+// The form holds its send until three seconds after its token arrived (the
+// server's minimum fill time), whatever the token's own timestamp says, so a
+// successful submit is expected to take that long.
+const SUBMIT_TIMEOUT = 10_000;
+
+function mockFormToken(page: Page) {
+  return page.route("**/api/kontakt/token", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ token: `${Date.now() - 10_000}.e2e-test-signature` }),
+    }),
+  );
+}
 
 test.describe("/kontakt", () => {
   test("has no automatically detectable accessibility violations", async ({ page }) => {
@@ -70,6 +86,44 @@ test.describe("/kontakt", () => {
     // against a mocked db/mail layer — this only proves the form actually
     // calls the route and reacts to its response, without needing a real
     // database or Resend key in the e2e environment.
+    await mockFormToken(page);
+    await page.route("**/api/kontakt", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }),
+    );
+    await page.goto("/kontakt");
+    await page.getByLabel("Name").fill("Jane Doe");
+    await page.getByLabel("E-Mail").fill("jane@example.com");
+    await page.getByLabel("Betreff").fill("Partnerschaft");
+    await page.getByLabel("Nachricht").fill("Wir würden gerne mit euch sprechen.");
+    await page.getByRole("button", { name: "Nachricht senden" }).click();
+
+    await expect(page.getByRole("status")).toContainText("Danke für deine Nachricht", {
+      timeout: SUBMIT_TIMEOUT,
+    });
+  });
+
+  test("sends the timing token and an empty honeypot along with the message", async ({ page }) => {
+    await mockFormToken(page);
+    let sent: Record<string, unknown> | null = null;
+    await page.route("**/api/kontakt", (route) => {
+      sent = route.request().postDataJSON();
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+    });
+    await page.goto("/kontakt");
+    await page.getByLabel("Name").fill("Jane Doe");
+    await page.getByLabel("E-Mail").fill("jane@example.com");
+    await page.getByLabel("Betreff").fill("Partnerschaft");
+    await page.getByLabel("Nachricht").fill("Wir würden gerne mit euch sprechen.");
+    await page.getByRole("button", { name: "Nachricht senden" }).click();
+    await expect(page.getByRole("status")).toContainText("Danke für deine Nachricht", {
+      timeout: SUBMIT_TIMEOUT,
+    });
+
+    expect(sent).toMatchObject({ website: "", formToken: expect.stringMatching(/^\d+\.e2e-test-signature$/) });
+  });
+
+  test("still sends the message when no token could be issued", async ({ page }) => {
+    await page.route("**/api/kontakt/token", (route) => route.fulfill({ status: 500 }));
     await page.route("**/api/kontakt", (route) =>
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }),
     );
@@ -84,6 +138,7 @@ test.describe("/kontakt", () => {
   });
 
   test("shows an error with a mailto fallback when the request fails", async ({ page }) => {
+    await mockFormToken(page);
     await page.route("**/api/kontakt", (route) => route.fulfill({ status: 500 }));
     await page.goto("/kontakt");
     await page.getByLabel("Name").fill("Jane Doe");
@@ -100,7 +155,7 @@ test.describe("/kontakt", () => {
     // (rather than by visible text) finds nothing.
     await expect(
       page.getByRole("alert").filter({ hasText: "teamvorstand@unimannheim.enactus.team" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: SUBMIT_TIMEOUT });
   });
 
   test("blocks submission with visible errors when the form is empty", async ({ page }) => {

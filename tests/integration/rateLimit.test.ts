@@ -97,6 +97,7 @@ describe("checkRateLimit", () => {
       ["bewerbung", 20],
       ["ideathon", 20],
       ["kontakt", 10],
+      ["kontakt-token", 60],
       ["reminder", 10],
       ["reminder-bestaetigen", 30],
       ["reminder-abmelden", 30],

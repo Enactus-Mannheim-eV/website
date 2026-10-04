@@ -52,6 +52,9 @@ const MAX_PER_WINDOW: Record<string, number> = {
   // a whole campus WLAN can sit behind one shared egress IP (same
   // reasoning as bewerbung/ideathon above).
   "bewerbung-token": 60,
+  // Same reasoning for the contact form's token: one call per page load, so
+  // generous, but not unlimited.
+  "kontakt-token": 60,
   // The actual upload route — tighter than the token route on purpose,
   // since a successful call here writes a file to the store, not just
   // issues a token.

@@ -1,6 +1,7 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { createFormToken } from "@/lib/formToken";
 
 const insertContactMessage = vi.fn();
 const markContactMessageMailed = vi.fn();
@@ -34,6 +35,12 @@ const STORED_MESSAGE = {
   locale: "de" as const,
 };
 
+// A token already ten seconds old, like a visitor who has been on the page
+// for a moment, signed with the same secret the route verifies against.
+function freshToken() {
+  return createFormToken(new Date(Date.now() - 10_000));
+}
+
 function validPayload(overrides: Record<string, unknown> = {}) {
   return {
     name: "Jane Doe",
@@ -41,6 +48,8 @@ function validPayload(overrides: Record<string, unknown> = {}) {
     subject: "Frage zur Bewerbung",
     message: "Wir würden gerne mit euch sprechen.",
     locale: "de",
+    website: "",
+    formToken: freshToken(),
     ...overrides,
   };
 }
@@ -53,9 +62,17 @@ function postRequest(body: unknown) {
   });
 }
 
+const ORIGINAL_SECRET = process.env.FORM_TOKEN_SECRET;
+
 describe("POST /api/kontakt", () => {
+  beforeEach(() => {
+    process.env.FORM_TOKEN_SECRET = "a-form-token-signing-secret";
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
+    if (ORIGINAL_SECRET === undefined) delete process.env.FORM_TOKEN_SECRET;
+    else process.env.FORM_TOKEN_SECRET = ORIGINAL_SECRET;
   });
 
   it("persists the message when forwarding it by email fails", async () => {
@@ -118,5 +135,71 @@ describe("POST /api/kontakt", () => {
 
     expect(response.status).toBe(429);
     expect(insertContactMessage).not.toHaveBeenCalled();
+  });
+
+  it("stores an ordinary message as not spam", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
+    insertContactMessage.mockResolvedValue(STORED_MESSAGE);
+    sendContactMessageNotification.mockResolvedValue("email-id");
+
+    const { POST } = await import("@/app/api/kontakt/route");
+    await POST(postRequest(validPayload()));
+
+    expect(insertContactMessage).toHaveBeenCalledWith(expect.objectContaining({ spam: false, spamReasons: [] }));
+  });
+
+  describe("suspected spam", () => {
+    async function submitSpam(overrides: Record<string, unknown>) {
+      checkRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
+      insertContactMessage.mockResolvedValue({ ...STORED_MESSAGE, spam: true });
+      const { POST } = await import("@/app/api/kontakt/route");
+      return POST(postRequest(validPayload(overrides)));
+    }
+
+    // Overrides are built inside each test: the token needs the secret that
+    // beforeEach sets, which doesn't exist yet while this table is declared.
+    it.each([
+      [
+        "a random name and subject",
+        () => ({ name: "aUubpMfPxUvNtpHEEaTgU", subject: "HBBPNQHYMRjYrUrUBKsXccV" }),
+        ["random_name", "random_subject", "long_single_name"],
+      ],
+      ["a filled honeypot", () => ({ website: "https://spam.example" }), ["honeypot"]],
+      ["a missing token", () => ({ formToken: undefined }), ["token_missing"]],
+      ["a forged token", () => ({ formToken: "1.forged" }), ["token_invalid"]],
+      ["a token that is too young", () => ({ formToken: createFormToken() }), ["too_fast"]],
+    ])("holds back %s: stored flagged, never mailed, answered like a success", async (_label, overrides, reasons) => {
+      const response = await submitSpam(overrides());
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(insertContactMessage).toHaveBeenCalledWith(expect.objectContaining({ spam: true, spamReasons: reasons }));
+      expect(sendContactMessageNotification).not.toHaveBeenCalled();
+      expect(markContactMessageMailed).not.toHaveBeenCalled();
+      expect(markContactMessageMailFailed).not.toHaveBeenCalled();
+    });
+
+    it("answers a bot's flagged message exactly like a normal one", async () => {
+      checkRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
+      insertContactMessage.mockResolvedValue(STORED_MESSAGE);
+      sendContactMessageNotification.mockResolvedValue("email-id");
+      const { POST } = await import("@/app/api/kontakt/route");
+
+      const normal = await POST(postRequest(validPayload()));
+      const flagged = await POST(postRequest(validPayload({ website: "x" })));
+
+      expect(flagged.status).toBe(normal.status);
+      expect(await flagged.json()).toEqual(await normal.json());
+    });
+
+    it("still reports a server error when a flagged message cannot be stored", async () => {
+      checkRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
+      insertContactMessage.mockRejectedValue(new Error("connection reset"));
+      const { POST } = await import("@/app/api/kontakt/route");
+
+      const response = await POST(postRequest(validPayload({ website: "x" })));
+
+      expect(response.status).toBe(500);
+    });
   });
 });

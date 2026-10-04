@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { MIN_FILL_MS } from "@/lib/antiSpam";
+import { FORM_TOKEN_MAX_AGE_MS, MIN_FILL_MS } from "@/lib/antiSpam";
 
 /**
  * Replaces the old client-supplied `formRenderedAt: z.number()` field
@@ -23,7 +23,7 @@ import { MIN_FILL_MS } from "@/lib/antiSpam";
  * finding 4 flags for ADMIN_PASSWORD.
  */
 
-const MAX_AGE_MS = 2 * 60 * 60 * 1000; // generous: a real applicant might leave the tab open for a while
+const MAX_AGE_MS = FORM_TOKEN_MAX_AGE_MS; // generous: a real applicant might leave the tab open for a while
 
 export type FormTokenStatus = "valid" | "too_fast" | "expired" | "invalid";
 

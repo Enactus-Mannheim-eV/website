@@ -38,7 +38,15 @@ export type ApplicationRequest = z.infer<typeof applicationRequestSchema>;
 export const reminderRequestSchema = reminderSignupSchema.extend({ locale: localeSchema });
 export type ReminderRequest = z.infer<typeof reminderRequestSchema>;
 
-export const contactRequestSchema = contactFormSchema.extend({ locale: localeSchema });
+// Both extra fields are optional on purpose, unlike the application forms'
+// required `formToken`: a request without them is not rejected with a 400
+// (which would lose a real message whose token fetch failed) but stored and
+// held back as suspected spam, see lib/contactSpam.ts.
+export const contactRequestSchema = contactFormSchema.extend({
+  locale: localeSchema,
+  formToken: z.string().optional(),
+  website: z.string().optional(),
+});
 export type ContactRequest = z.infer<typeof contactRequestSchema>;
 
 export const ideathonSignupRequestSchema = ideathonSignupFormSchema.extend({
