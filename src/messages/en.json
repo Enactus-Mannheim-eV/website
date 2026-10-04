@@ -2026,7 +2026,32 @@
         "createdAt": "Received",
         "sender": "Sender",
         "subject": "Subject",
-        "mailStatus": "Mail status"
+        "mailStatus": "Mail status",
+        "reasons": "Detected by",
+        "actions": "Action"
+      },
+      "tabsLabel": "View",
+      "tabs": {
+        "inbox": "Inbox ({count})",
+        "spam": "Spam ({count})"
+      },
+      "spamLead": "Messages detected as spam. They are stored but were not forwarded to the mailbox. \"Not spam\" releases a message and forwards it right away. Release only what looks like a genuine enquiry.",
+      "spamEmpty": "No messages detected as spam.",
+      "notSpam": "Not spam",
+      "notSpamFailed": "Releasing did not work. Please try again.",
+      "releasedMailFailed": "Released, but forwarding failed. The message now appears under \"Failed mails\" and can be resent there.",
+      "reasons": {
+        "honeypot": "Hidden field filled in",
+        "token_missing": "No form token",
+        "token_invalid": "Invalid form token",
+        "too_fast": "Submitted too fast",
+        "token_expired": "Form token expired",
+        "random_name": "Name looks like random characters",
+        "random_subject": "Subject looks like random characters",
+        "no_vowel": "Word without vowels",
+        "long_single_name": "Very long name without spaces",
+        "wordless_message": "Message without recognisable words",
+        "dotted_email": "Address with an unusual number of dots"
       }
     },
     "deletionRequests": {

@@ -2026,7 +2026,32 @@
         "createdAt": "Eingangsdatum",
         "sender": "Absender",
         "subject": "Betreff",
-        "mailStatus": "Mailstatus"
+        "mailStatus": "Mailstatus",
+        "reasons": "Erkannt an",
+        "actions": "Aktion"
+      },
+      "tabsLabel": "Ansicht",
+      "tabs": {
+        "inbox": "Posteingang ({count})",
+        "spam": "Spam ({count})"
+      },
+      "spamLead": "Als Spam erkannte Nachrichten. Sie sind gespeichert, wurden aber nicht ins Postfach weitergeleitet. Mit „Kein Spam“ gibst du eine Nachricht frei, sie wird dann sofort weitergeleitet. Freigegeben wird nur, was nach einer echten Anfrage aussieht.",
+      "spamEmpty": "Keine als Spam erkannten Nachrichten.",
+      "notSpam": "Kein Spam",
+      "notSpamFailed": "Das Freigeben hat nicht geklappt. Bitte versuche es erneut.",
+      "releasedMailFailed": "Freigegeben, aber die Weiterleitung ist fehlgeschlagen. Die Nachricht steht jetzt unter „Fehlgeschlagene Mails“ und kann dort erneut gesendet werden.",
+      "reasons": {
+        "honeypot": "Verstecktes Feld ausgefüllt",
+        "token_missing": "Kein Formular-Token",
+        "token_invalid": "Ungültiges Formular-Token",
+        "too_fast": "Zu schnell abgeschickt",
+        "token_expired": "Formular-Token abgelaufen",
+        "random_name": "Name wie Zufallszeichen",
+        "random_subject": "Betreff wie Zufallszeichen",
+        "no_vowel": "Wort ohne Vokale",
+        "long_single_name": "Sehr langer Name ohne Leerzeichen",
+        "wordless_message": "Nachricht ohne erkennbare Wörter",
+        "dotted_email": "Adresse mit auffällig vielen Punkten"
       }
     },
     "deletionRequests": {
