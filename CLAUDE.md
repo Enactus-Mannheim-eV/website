@@ -62,7 +62,7 @@ in the report. If the run is red or still in progress, say so rather than
 reporting "green".
 
 ```
-curl -s "https://api.github.com/repos/MilanKoncz/enactusWebsite/actions/runs?per_page=5"
+curl -s "https://api.github.com/repos/Enactus-Mannheim-eV/website/actions/runs?per_page=5"
 ```
 
 `gh` is not installed here; the REST API works unauthenticated for run status.
@@ -71,7 +71,7 @@ token:
 
 ```
 GH_PW=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill | sed -n 's/^password=//p')
-curl -sL -H "Authorization: Bearer $GH_PW" ".../actions/jobs/<job-id>/logs"
+curl -sL -H "Authorization: Bearer $GH_PW" "https://api.github.com/repos/Enactus-Mannheim-eV/website/actions/jobs/<job-id>/logs"
 ```
 
 Two traps this project has already hit, worth checking before pushing:
