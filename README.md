@@ -10,7 +10,7 @@ non-negotiables, the stack, and the architecture. Reference docs live in
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 24.22.1 or newer, below 25 (see `.nvmrc`)
 - npm
 - A Neon Postgres connection string and a Resend API key for local form testing
   (see `.env.example`)
