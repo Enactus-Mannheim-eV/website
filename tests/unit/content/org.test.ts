@@ -21,8 +21,8 @@ describe("content/org", () => {
     expect(org.contactEmails.general).toBeNull();
   });
 
-  it("names all three confirmed legal representatives", () => {
-    expect(org.legalRepresentatives.names).toEqual(["Thorben Ossig", "Anton Osuhovskiy", "Tom Iizuka"]);
+  it("names the confirmed legal representatives", () => {
+    expect(org.legalRepresentatives.names).toEqual(["Thorben Ossig", "Anton Osuhovskiy"]);
     expect(org.legalRepresentatives.verified).toBe(true);
   });
 
